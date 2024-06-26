@@ -1,2 +1,70 @@
-# AeriesReportBuilder
-Aeries SQL Queries with Report Builder SSRS
+--AeriesReportBuilder
+--Aeries SQL Queries with Report Builder SSRS
+--Drug Incident Counts 1-4
+--Our school is implementing a new program where drug offenses are handled with a progressive disciplinary approach. This program tracks every drug incident with the following steps:
+
+--First Drug Incident: The student will participate in a drug educational rehab program. This incident will not result in suspension.
+--Second Drug Incident: The student will receive a suspension.
+--Third Drug Incident: The student will undergo further counseling in addition to receiving a suspension.
+--Fourth Drug Incident: The student will face expulsion.
+--I have attached all codes for drug incidents 1-4 in this repository.
+--To implement and manage this program, backend access in SQL Server Management Studio (SSMS) is required. The following query can be used to track and manage these incidents:
+
+SELECT DISTINCT 
+    ID,
+    FN,
+    LN,
+    CASE 
+        WHEN ADS.SCL = 10 THEN 8 
+        ELSE ADS.SCL 
+    END AS SCL,
+    CASE 
+        WHEN ads.scl = 1 THEN 'WHS' --Change to your school codes and Names 
+        WHEN ads.scl = 3 THEN 'CHS' --Change to your school codes and Names 
+        WHEN ads.scl = 4 THEN 'SFHS' --Change to your school codes and Names 
+        WHEN ads.scl = 6 THEN 'PHS' --Change to your school codes and Names 
+        WHEN ads.scl = 7 THEN 'LSHS' --Change to your school codes and Names 
+        WHEN ads.scl = 8 THEN 'FHS' --Change to your school codes and Names 
+        WHEN ads.scl = 9 THEN 'SVHS' --Change to your school codes and Names 
+        WHEN ads.scl = 10 THEN 'FHS' --Change to your school codes and Names 
+        ELSE '' 
+    END AS [School],
+    ADS.CD,
+    CASE 
+        WHEN ads.cd = 1 OR ads.cd2 = 1 OR ads.cd3 = 1 OR ads.cd4 = 1 OR ads.cd5 = 1 THEN 'Drug Incident 1' -- If any of your assertive discipline codes equal 1, then this will count as drug incident 1 
+        ELSE '' --If any ADS.CD Code equals 1, it will be counted in the report 
+    END AS [Offense],
+    ADS.DT,
+    ac.DE,
+    dsp.ds,
+    (
+        SELECT COUNT(*) 
+        FROM DAY 
+        WHERE HO = '' AND DT <= GETDATE() AND SC = SCL 
+        GROUP BY SC
+    ) [Day],
+    CASE 
+        WHEN SCL IN (8,10) THEN (
+            SELECT COUNT(DISTINCT ID) 
+            FROM ENR
+            WHERE ENR.YR = '2023'-- change date for current school year AND ENR.DEL = 0 AND ENR.SC IN (8,10)
+        ) 
+        ELSE (
+            SELECT COUNT(DISTINCT ID) 
+            FROM ENR
+            WHERE ENR.YR = '2023' AND ENR.DEL = 0 AND ENR.SC = SCL
+        ) 
+    END [ENR]
+FROM stu
+JOIN ads ON ads.pid = stu.id AND ads.dt BETWEEN '07-01-2023' AND '06-30-2024' -- Change dates for new school year, if needed.
+    AND (
+        ads.cd = '1' OR 
+        ads.cd2 = '1' OR 
+        ads.cd3 = '1' OR 
+        ads.cd4 = '1' OR 
+        ads.cd5 = '1'
+    ) 
+    AND ads.del = stu.del
+JOIN cod AS ac ON ac.tc = 'ADS' AND ac.FC = 'CD' AND ac.CD = ads.CD
+JOIN dsp ON dsp.pid = ads.pid AND dsp.sq = ads.sq AND dsp.del = ads.del
+WHERE stu.sc BETWEEN 1 AND 10 AND stu.del = 0
