@@ -1,0 +1,58 @@
+SELECT DISTINCT 
+    ID,
+    FN,
+    LN,
+    CASE 
+        WHEN ADS.SCL = 10 THEN 8 
+        ELSE ADS.SCL 
+    END AS SCL,
+    CASE 
+        WHEN ads.scl = 1 THEN 'WHS' 
+        WHEN ads.scl = 3 THEN 'CHS' 
+        WHEN ads.scl = 4 THEN 'SFHS' 
+        WHEN ads.scl = 6 THEN 'PHS' 
+        WHEN ads.scl = 7 THEN 'LSHS' 
+        WHEN ads.scl = 8 THEN 'FHS' 
+        WHEN ads.scl = 9 THEN 'SVHS' 
+        WHEN ads.scl = 10 THEN 'FHS' 
+        ELSE '' 
+    END AS [School],
+    ADS.CD,
+    CASE 
+        WHEN ads.cd = 4 OR ads.cd2 = 4 OR ads.cd3 = 4 OR ads.cd4 = 4 OR ads.cd5 = 4 THEN 'Drug Incident 4'--change ADS.CD to match New Drug Offense Code.
+        ELSE '' 
+    END AS [Offense],
+    ADS.DT,
+    ac.DE,
+    dsp.ds,
+    (
+        SELECT COUNT(*) 
+        FROM DAY 
+        WHERE HO = '' AND DT <= GETDATE() AND SC = SCL 
+        GROUP BY SC
+    ) [Day],
+    CASE 
+        WHEN SCL IN (8,10) THEN (
+            SELECT COUNT(DISTINCT ID) 
+            FROM ENR
+            WHERE ENR.YR = '2023' AND ENR.DEL = 0 AND ENR.SC IN (8,10)
+        ) 
+        ELSE (
+            SELECT COUNT(DISTINCT ID) 
+            FROM ENR
+            WHERE ENR.YR = '2023' AND ENR.DEL = 0 AND ENR.SC = SCL
+        ) 
+    END [ENR]
+FROM stu
+JOIN ads ON ads.pid = stu.id AND ads.dt BETWEEN '07-01-2023' AND '06-30-2024'
+    AND (
+        ads.cd = '4' OR --Change all codes to the new ADS.CD for drug offenses
+        ads.cd2 = '4' OR 
+        ads.cd3 = '4' OR 
+        ads.cd4 = '4' OR 
+        ads.cd5 = '4'
+    ) 
+    AND ads.del = stu.del
+JOIN cod AS ac ON ac.tc = 'ADS' AND ac.FC = 'CD' AND ac.CD = ads.CD
+JOIN dsp ON dsp.pid = ads.pid AND dsp.sq = ads.sq AND dsp.del = ads.del
+WHERE stu.sc BETWEEN 1 AND 10 AND stu.del = 0
